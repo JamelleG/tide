@@ -150,34 +150,33 @@ impl<State: Send + Sync + 'static> Middleware<State> for Cors {
     fn handle<'a>(&'a self, cx: Request<State>, next: Next<'a, State>) -> BoxFuture<'a, Response> {
         Box::pin(async move {
             let origin = cx
-                .request()
                 .headers()
                 .get(header::ORIGIN)
                 .cloned()
                 .unwrap_or_else(|| HeaderValue::from_static(""));
 
             if !self.is_valid_origin(&origin) {
-                return http::Response::builder()
+                let res = http::Response::builder()
                     .status(StatusCode::UNAUTHORIZED)
                     .body(Body::empty())
                     .unwrap();
+                    return Response::from(res);
             }
 
             // Return results immediately upon preflight request
             if cx.method() == Method::OPTIONS {
-                return self.build_preflight_response(&origin);
+                return Response::from(self.build_preflight_response(&origin));
             }
 
             let mut response = next.run(cx).await;
-            let headers = response.headers_mut();
 
-            headers.append(
-                header::ACCESS_CONTROL_ALLOW_ORIGIN,
-                self.response_origin(origin).unwrap(),
+            response = response.set_header(
+                header::ACCESS_CONTROL_ALLOW_ORIGIN.as_str(),
+                self.response_origin(origin).unwrap().to_str().unwrap(),
             );
 
             if let Some(allow_credentials) = self.allow_credentials.clone() {
-                headers.append(header::ACCESS_CONTROL_ALLOW_CREDENTIALS, allow_credentials);
+                response = response.set_header(header::ACCESS_CONTROL_ALLOW_CREDENTIALS.as_str(), allow_credentials.to_str().unwrap());
             }
             response
         })
