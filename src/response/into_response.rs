@@ -32,9 +32,12 @@ pub trait IntoResponse: Send + Sized {
 
 // impl IntoResponse for Vec<u8> {
 //     fn into_response(self) -> Response {
+//         Response::new(200)
+//             .set_header("Content-Type", "application/octet-stream")
+//             .body(Body::from(self))
+//
 //         http::Response::builder()
 //             .status(http::status::StatusCode::OK)
-//             .header("Content-Type", "application/octet-stream")
 //             .body(Body::from(self))
 //             .unwrap()
 //     }
@@ -69,23 +72,23 @@ impl IntoResponse for &'_ str {
 //     }
 // }
 
-// impl<T: IntoResponse, U: IntoResponse> IntoResponse for Result<T, U> {
-//     fn into_response(self) -> Response {
-//         match self {
-//             Ok(r) => r.into_response(),
-//             Err(r) => {
-//                 let res = r.into_response();
-//                 if res.status().is_success() {
-//                     panic!(
-//                         "Attempted to yield error response with success code {:?}",
-//                         res.status()
-//                     )
-//                 }
-//                 res
-//             }
-//         }
-//     }
-// }
+ impl<T: IntoResponse, U: IntoResponse> IntoResponse for Result<T, U> {
+     fn into_response(self) -> Response {
+         match self {
+             Ok(r) => r.into_response(),
+             Err(r) => {
+                 let res = r.into_response();
+                 if res.status().is_success() {
+                     panic!(
+                         "Attempted to yield error response with success code {:?}",
+                         res.status()
+                     )
+                }
+                 res
+             }
+         }
+     }
+ }
 
 impl IntoResponse for Response {
     fn into_response(self) -> Response {
